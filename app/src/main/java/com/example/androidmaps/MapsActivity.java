@@ -6,9 +6,13 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
+import android.view.View;
+import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -20,13 +24,14 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 
+import java.text.BreakIterator;
+
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private FusedLocationProviderClient fusedLocationClient;
     private final int ACCESS_LOCATION_PERMISSION_CODE = 44;
-
 
 
 
@@ -122,6 +127,51 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             default:
                 super.onRequestPermissionsResult( requestCode, permissions, grantResults );
         }
+    }
+
+
+    public void onFindAddressClicked( View view )
+    {
+        startFetchAddressIntentService();
+    }
+    public void startFetchAddressIntentService()
+    {
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        if ( location != null )
+                        {
+                            AddressResultReceiver addressResultReceiver = new AddressResultReceiver( new Handler() );
+                            addressResultReceiver.setAddressResultListener( new AddressResultListener()
+                            {
+                                @Override
+                                public void onAddressFound( final String address )
+                                {
+                                    runOnUiThread( new Runnable()
+                                    {
+                                        @Override
+                                        public void run()
+                                        {
+
+
+                                            TextView tv=findViewById(R.id.addressResult);
+                                            tv.setText(address);
+                                            tv.setVisibility(View.VISIBLE);
+
+                                        }
+                                    } );
+
+
+                                }
+                            } );
+                            Intent intent = new Intent( MapsActivity.this, FetchAddressIntentService.class );
+                            intent.putExtra( FetchAddressIntentService.RECEIVER, addressResultReceiver );
+                            intent.putExtra( FetchAddressIntentService.LOCATION_DATA_EXTRA, location );
+                            startService( intent );
+                        }
+                    }
+                });
     }
 
 }
